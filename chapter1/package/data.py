@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import hashlib
+import datetime as dt
 
 class Task:
     def __init__(self, valuesDict):
@@ -10,7 +11,6 @@ class Task:
         self.data = Data()
         self.df = self.data.read_data()
         self.columns = self.df.columns.values
-
         self.valuesDict['deadline'] = self.parseTime()
 
 
@@ -20,6 +20,12 @@ class Task:
 
         if self.valuesDict['operation'] == 'update':
             self.update()
+
+        if self.valuesDict['operation'] == 'remove':
+            self.remove()
+
+        if self.valuesDict['operation'] == 'list':
+            self.list()
 
     def add(self):
         if self.valuesDict['name'] == None:
@@ -31,7 +37,25 @@ class Task:
         for col in self.columns[:-1]:
             if self.valuesDict[col] != None:
                 self.data.update_data(self.valuesDict['hash'], col, self.valuesDict[col])
-        
+    
+    def remove(self):
+        self.data.remove_data(self.valuesDict['hash'])
+
+    def list(self):
+        isAll, isToday = self.valuesDict['all'], self.valuesDict['today']
+        criterium = None
+
+        if isAll == False and isToday == False:
+            print('type --all or --today to list tasks')
+        elif isAll == True and isToday == True:
+            print('choose one (today or all)')
+        else:
+            if isAll == True:
+                self.data.show_data(criterium)
+
+            if isToday == True:
+                now = dt.datetime.now().strftime("%Y-%m-%d")
+                self.data.show_data(now)
 
     def parseTime(self):
         if self.valuesDict['deadline'] != None:
@@ -41,8 +65,6 @@ class Task:
     
     def __del__(self): 
         self.data.save_data()
-
-
 
 class Data:
     def __init__(self):
@@ -68,7 +90,6 @@ class Data:
             df = pd.read_csv('data.csv')
         else:
             df = pd.DataFrame(columns = ['name', 'description',  'deadline', 'hash'])
-
         return df
     
     def insert_data(self, values):
@@ -78,15 +99,23 @@ class Data:
     def update_data(self, hashValue, colName, value):
         if len(self.df.loc[self.df['hash'] == hashValue].values) > 0:
             self.df.loc[self.df['hash'] == hashValue, colName] = value
-
             index = self.get_index(hashValue)
             self.hash_task(index)
         else:
             print("No task meets hash criteria")
 
-
     def remove_data(self, hashCode):
-        self.df = self.df[self.df['Hash'] != hashCode]
+        self.df = self.df[self.df['hash'] != hashCode]
+
+    def show_data(self, date):
+        if date == None:
+            print(self.df)
+        else:
+            today_df = self.df[self.df['deadline'] == date]
+            if today_df.empty:
+                print('No tasks for today')
+            else:
+                print(today_df)
 
     def save_data(self):
         self.df.to_csv('data.csv', index=False)
